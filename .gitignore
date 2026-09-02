@@ -26,10 +26,6 @@ wheels/
 .installed.cfg
 *.egg
 
-# PyInstaller
-*.manifest
-*.spec
-
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -42,89 +38,45 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Translations
-*.mo
-*.pot
+# Streamlit secrets & config (NEVER commit secrets or API keys)
+.streamlit/secrets.toml
+.streamlit/secrets*.toml
 
-# Django stuff:
-*.log
-local_settings.py
+# Educational / Internal Markdown Guides (Excluded from repository)
+ExplanationOfRAGApp.md
+Enhancement_CRAG_and_Reranking.md
 
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# pyenv
-.python-version
-
-# celery beat schedule file
-celerybeat-schedule
-
-# SageMath parsed files
-.sagemath/
+# API keys, credentials, & environment variables
+.env
+.env.*
+.env.local
+.env.*.local
+*.pem
+*.key
 
 # Environments
-.env
-.venv
-env/
+.venv/
 venv/
+env/
 ENV/
+toda_env/
 env.bak/
 venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# Vector DB & cache runtime files
+chroma_db/
+*.faiss
+*.pkl
+*.pickle
 
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-
-# IDEs
+# IDEs & OS
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
-
-# Streamlit secrets (NEVER commit)
-.streamlit/secrets.toml
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
-# FAISS indexes and cache
-*.faiss
-*.pkl
-*.pickle
-
-# API keys and credentials
-.env.local
-.env.*.local
-
-# OS
 Thumbs.db
-.DS_Store
 
-# Docker
+# Logs
 *.log
