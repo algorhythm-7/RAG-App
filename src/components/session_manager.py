@@ -133,15 +133,16 @@ class SessionManager:
     
     @staticmethod
     def run_diagnosis(symptom_text: str) -> Dict:
-        """Run the full two-stage diagnostic pipeline for a symptom description:
+        """Run the full diagnostic pipeline for a symptom description:
         Stage 1 triage (symptom -> systems + search queries), hybrid retrieval
-        (BM25 + vector, fused via RRF), then Stage 2 reasoning (differential diagnosis).
+        (BM25 + vector, fused via RRF), 2nd-stage neural Cross-Encoder reranking,
+        Corrective RAG (CRAG) evaluation, then Stage 2 reasoning (differential diagnosis).
         
         Args:
             symptom_text: The driver's symptom description.
         
         Returns:
-            Dict with keys "triage" (TriageResult) and "diagnosis" (DiagnosisResult).
+            Dict with keys "triage" (TriageResult), "diagnosis" (DiagnosisResult), and "crag" (CRAGReport).
         """
         SessionManager.initialize_session()
         
@@ -151,9 +152,16 @@ class SessionManager:
         vector_store = st.session_state[SessionManager.VECTOR_STORE]
         embedder = EmbeddingGenerator()
         retriever = HybridRetriever(bm25_index, vector_store, embedder)
-        retrieved = retriever.retrieve(triage_result.search_queries)
+        retrieved, crag_report = retriever.retrieve_with_crag(
+            primary_query=symptom_text,
+            search_queries=triage_result.search_queries,
+        )
         
-        diagnosis_result = ReasoningLLM().diagnose(symptom_text, retrieved)
+        diagnosis_result = ReasoningLLM().diagnose(
+            symptom_text,
+            retrieved,
+            crag_report=crag_report,
+        )
         
         st.session_state[SessionManager.DIAGNOSIS_HISTORY].append(diagnosis_result)
         st.session_state[SessionManager.LAST_TRIAGE] = triage_result
@@ -161,7 +169,7 @@ class SessionManager:
         st.session_state[SessionManager.LAST_LOCATION_RESULT] = None
         st.session_state[SessionManager.LAST_ACTIVITY] = datetime.now()
         
-        return {"triage": triage_result, "diagnosis": diagnosis_result}
+        return {"triage": triage_result, "diagnosis": diagnosis_result, "crag": crag_report}
     
     @staticmethod
     def get_diagnosis_history() -> List[DiagnosisResult]:

@@ -171,7 +171,35 @@ elif page == "Diagnose":
 
         triage = SessionManager.get_last_triage()
         diagnosis = SessionManager.get_last_diagnosis()
-        if diagnosis is not None:
+            # CRAG & Cross-Encoder Observability Panel
+            if diagnosis.crag_report is not None:
+                crag = diagnosis.crag_report
+                grade_color = {
+                    "CORRECT": "🟢",
+                    "AMBIGUOUS": "🟡",
+                    "OUT_OF_SCOPE": "🔴",
+                }.get(crag.relevance_grade, "ℹ️")
+
+                with st.expander(f"🎯 Corrective RAG (CRAG) & Cross-Encoder Observability [{grade_color} {crag.relevance_grade}]", expanded=False):
+                    col_crag1, col_crag2, col_crag3 = st.columns(3)
+                    with col_crag1:
+                        st.metric("Relevance Grade", f"{grade_color} {crag.relevance_grade}")
+                    with col_crag2:
+                        st.metric("Neural Confidence", f"{crag.confidence_score:.1%}")
+                    with col_crag3:
+                        st.metric("Passages Retained", f"{crag.filtered_count} / {crag.original_count}")
+                    
+                    st.markdown(f"**2nd-Stage Reranker Model:** `{crag.reranker_model}`")
+                    st.markdown("**Corrective Actions & Guardrails:**")
+                    for action in crag.actions_taken:
+                        st.write(f"- {action}")
+                    
+                    if crag.score_breakdown:
+                        st.markdown("**Chunk Score Breakdown:**")
+                        for item in crag.score_breakdown:
+                            tag = "🖼️ [Diagram]" if item.get("is_diagram") else "📄 [Text]"
+                            st.write(f"- {tag} **{item['section']}** — Score: `{item['score']:.3f}` ({item['status']})")
+
             with st.expander("🧠 Thinking (triage + reasoning trace)", expanded=True):
                 st.markdown("**Systems identified:** " + (", ".join(triage.systems) or "—"))
                 st.markdown("**Search queries:**")
@@ -294,14 +322,22 @@ elif page == "Query":
                         processor = QueryProcessor(embedder, indexer)
                         generator = AnswerGenerator()
                         
-                        # Find relevant passages
-                        passages, confidence = processor.find_relevant_passages(query_text)
+                        # Find relevant passages with 2-stage Cross-Encoder reranking & CRAG evaluation
+                        passages, confidence, crag_report = processor.find_relevant_passages_with_crag(query_text)
                         
-                        if not passages:
-                            st.info("❌ No relevant information found. Try rephrasing your question.")
-                        else:
+                        if not passages or (crag_report and crag_report.relevance_grade == "OUT_OF_SCOPE"):
+                            st.warning("⚠️ **Corrective RAG Guardrail Triggered:** The retrieved passages have low relevance for this question. The query may be outside the scope of the uploaded manual(s).")
+                            if crag_report:
+                                with st.expander("🔍 CRAG Guardrail Details", expanded=False):
+                                    st.write(f"- **Relevance Grade:** 🔴 {crag_report.relevance_grade}")
+                                    st.write(f"- **Confidence Score:** {crag_report.confidence_score:.1%}")
+                                    st.write(f"- **Reranker:** `{crag_report.reranker_model}`")
+                        
+                        if passages:
                             # Generate answer
                             result = generator.generate_answer(query_text, passages)
+                            result.crag_report = crag_report
+                            result.confidence = confidence
                             
                             elapsed = time.time() - start_time
                             
@@ -310,8 +346,24 @@ elif page == "Query":
                                 st.success("✅ Answer found!")
                                 st.markdown(f"### {result.answer}")
                                 
+                                # CRAG Observability Expander
+                                if crag_report:
+                                    grade_color = {"CORRECT": "🟢", "AMBIGUOUS": "🟡", "OUT_OF_SCOPE": "🔴"}.get(crag_report.relevance_grade, "ℹ️")
+                                    with st.expander(f"🎯 Corrective RAG (CRAG) & Cross-Encoder Observability [{grade_color} {crag_report.relevance_grade}]", expanded=False):
+                                        col_c1, col_c2, col_c3 = st.columns(3)
+                                        with col_c1:
+                                            st.metric("Relevance Grade", f"{grade_color} {crag_report.relevance_grade}")
+                                        with col_c2:
+                                            st.metric("Neural Confidence", f"{crag_report.confidence_score:.1%}")
+                                        with col_c3:
+                                            st.metric("Chunks Retained", f"{crag_report.filtered_count} / {crag_report.original_count}")
+                                        
+                                        st.markdown(f"**2nd-Stage Reranker:** `{crag_report.reranker_model}`")
+                                        for action in crag_report.actions_taken:
+                                            st.write(f"- {action}")
+
                                 st.markdown("---")
-                                st.subheader("📚 Sources")
+                                st.subheader("📚 Sources & Cross-Encoder Scores")
                                 for source in result.sources:
                                     with st.expander(f"📄 {source['document_name']} - {source['section']}"):
                                         st.write(source['passage'])

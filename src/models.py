@@ -47,6 +47,28 @@ class Document:
 
 
 @dataclass
+class CRAGReport:
+    """Corrective RAG (CRAG) evaluation and Cross-Encoder reranking report.
+
+    Attributes:
+        relevance_grade: CORRECT (high confidence), AMBIGUOUS (moderate), or OUT_OF_SCOPE (low).
+        confidence_score: Overall confidence score from the Cross-Encoder (0.0 to 1.0).
+        reranker_model: Name of the reranker model or scoring heuristic used.
+        actions_taken: List of corrective steps (e.g. 'Reranked with Cross-Encoder', 'Filtered 2 low-relevance chunks').
+        original_count: Number of candidate passages before reranking/filtering.
+        filtered_count: Number of passages retained after CRAG thresholding.
+        score_breakdown: List of dicts with section, rerank score, and status per passage.
+    """
+    relevance_grade: str = "CORRECT"
+    confidence_score: float = 0.0
+    reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    actions_taken: List[str] = field(default_factory=list)
+    original_count: int = 0
+    filtered_count: int = 0
+    score_breakdown: List[dict] = field(default_factory=list)
+
+
+@dataclass
 class QueryResult:
     """Result of a query against the documents.
     
@@ -56,12 +78,14 @@ class QueryResult:
         sources: List of source attributions (document + passage).
         confidence: Confidence score (0-1).
         response_time_ms: Time taken to process query.
+        crag_report: Optional CRAG evaluation & reranking report.
     """
     status: str
     answer: str
     sources: List[dict] = field(default_factory=list)
     confidence: float = 0.0
     response_time_ms: int = 0
+    crag_report: Optional[CRAGReport] = None
 
 
 @dataclass
@@ -109,6 +133,7 @@ class DiagnosisResult:
         diagrams: Diagram passages (section + image_bytes) relevant to the diagnosis.
         confidence: Confidence score (0-1).
         response_time_ms: Time taken to process the diagnosis.
+        crag_report: Optional CRAG evaluation & reranking report.
     """
     thinking: str = ""
     steps: List[str] = field(default_factory=list)
@@ -117,6 +142,7 @@ class DiagnosisResult:
     diagrams: List[dict] = field(default_factory=list)
     confidence: float = 0.0
     response_time_ms: int = 0
+    crag_report: Optional[CRAGReport] = None
 
 
 @dataclass
@@ -157,3 +183,4 @@ class LocationResult:
     stations: List[ServiceStation] = field(default_factory=list)
     map_image_bytes: Optional[bytes] = None
     error_message: Optional[str] = None
+

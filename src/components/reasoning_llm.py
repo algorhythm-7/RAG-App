@@ -45,6 +45,7 @@ class ReasoningLLM:
         symptom_text: str,
         retrieved: List[Tuple[Passage, float]],
         timeout_seconds: int = QUERY_TIMEOUT_SECONDS,
+        crag_report=None,
     ) -> DiagnosisResult:
         """Produce a differential diagnosis from the symptom and hybrid-retrieved passages.
 
@@ -52,9 +53,10 @@ class ReasoningLLM:
             symptom_text: The driver's symptom description.
             retrieved: Fused (Passage, score) results from the hybrid retriever.
             timeout_seconds: Timeout for the LLM call.
+            crag_report: Optional Corrective RAG evaluation report.
 
         Returns:
-            DiagnosisResult with thinking trace, steps, differential, citations, diagrams.
+            DiagnosisResult with thinking trace, steps, differential, citations, diagrams, crag_report.
         """
         start_time = time.time()
         diagrams = [
@@ -68,6 +70,7 @@ class ReasoningLLM:
                 thinking="No relevant passages were retrieved from the uploaded manuals.",
                 diagrams=diagrams,
                 response_time_ms=int((time.time() - start_time) * 1000),
+                crag_report=crag_report,
             )
 
         context = self._build_context(retrieved)
@@ -88,14 +91,20 @@ class ReasoningLLM:
 
             log_event("reasoning", passages=len(retrieved), response_time_ms=elapsed_ms)
 
+            confidence = (
+                crag_report.confidence_score if crag_report and crag_report.confidence_score > 0
+                else (0.85 if parsed.get("differential") else 0.3)
+            )
+
             return DiagnosisResult(
                 thinking=parsed.get("thinking", ""),
                 steps=parsed.get("steps", []),
                 differential=parsed.get("differential", []),
                 cited_pages=parsed.get("cited_pages") or self._default_pages(retrieved),
                 diagrams=diagrams,
-                confidence=0.8 if parsed.get("differential") else 0.3,
+                confidence=confidence,
                 response_time_ms=elapsed_ms,
+                crag_report=crag_report,
             )
         except Exception as e:
             elapsed_ms = int((time.time() - start_time) * 1000)
@@ -104,6 +113,7 @@ class ReasoningLLM:
                 thinking=ERROR_CODES.get("INTERNAL_ERROR", "An error occurred."),
                 diagrams=diagrams,
                 response_time_ms=elapsed_ms,
+                crag_report=crag_report,
             )
 
     def _build_context(self, retrieved: List[Tuple[Passage, float]]) -> str:

@@ -2,10 +2,15 @@
 
 import logging
 import sys
-import streamlit as st
+import os
 from datetime import datetime
 
-LOG_LEVEL = st.secrets.get("LOG_LEVEL", "INFO").upper()
+try:
+    import streamlit as st
+    LOG_LEVEL = st.secrets.get("LOG_LEVEL", os.getenv("LOG_LEVEL", "INFO")).upper()
+except Exception:
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 
 
 def setup_logger(name: str) -> logging.Logger:
