@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software Design Document - Document Query Application</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.esm.min.js" type="module"></script>
+    <style>
+        * { margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0066cc;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        h2 {
+            color: #0066cc;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 5px solid #0066cc;
+            padding-left: 15px;
+        }
+        h3 {
+            color: #0088dd;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        .metadata {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-left: 4px solid #0066cc;
+            margin: 20px 0;
+        }
+        .toc {
+            background-color: #f0f8ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 30px 0;
+        }
+        .toc ul {
+            list-style: none;
+        }
+        .toc li {
+            margin: 8px 0;
+        }
+        .toc a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .toc a:hover {
+            text-decoration: underline;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #0066cc;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .diagram-container {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        .diagram-caption {
+            font-style: italic;
+            color: #666;
+            margin-top: 10px;
+            font-size: 0.95em;
+        }
+        pre.mermaid {
+            display: flex;
+            justify-content: center;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .highlight {
+            background-color: #fffacd;
+            padding: 10px;
+            border-left: 4px solid #ffd700;
+            margin: 15px 0;
+        }
+        .note {
+            background-color: #e7f3ff;
+            padding: 10px;
+            border-left: 4px solid #2196F3;
+            margin: 15px 0;
+        }
+        .section-ref {
+            color: #0066cc;
+            font-weight: bold;
+        }
+        a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <h1>Software Design Document (SDD)</h1>
+    <h2 style="border: none; margin-top: 0; color: #333;">Document Query Application for Vehicle Owner's Manuals</h2>
+
+    <div class="metadata">
+        <p><strong>Version:</strong> 1.0</p>
+        <p><strong>Date:</strong> 2026-08-19</p>
+        <p><strong>Status:</strong> Draft</p>
+        <p><strong>Based on:</strong> <a href="../SRS.md">SRS.md</a> | <a href="../ACCEPTANCE_TESTS.md">ACCEPTANCE_TESTS.md</a></p>
+        <p><strong>Architecture Decision Records:</strong> <a href="adr/">adr/</a></p>
+    </div>
+
+    <!-- Table of Contents -->
+    <div class="toc">
+        <h3 style="margin-top: 0;">Table of Contents</h3>
+        <ul>
+            <li><a href="#introduction">1. Introduction</a></li>
+            <li><a href="#architecture-overview">2. Architecture Overview</a></li>
+            <li><a href="#tech-stack">3. Tech Stack</a></li>
+            <li><a href="#diagrams">4. Diagrams</a></li>
+            <li><a href="#api-boundary">5. API Boundary</a></li>
+            <li><a href="#data-boundary">6. Data Boundary</a></li>
+            <li><a href="#internal-design">7. Internal Design</a></li>
+            <li><a href="#cross-cutting">8. Cross-Cutting Concerns</a></li>
+            <li><a href="#decisions">9. Architecture Decisions</a></li>
+            <li><a href="#component-tests">10. Component-Level Tests</a></li>
+            <li><a href="#traceability">11. Traceability Matrix</a></li>
+            <li><a href="#open-questions">12. Open Questions & Future Considerations</a></li>
+        </ul>
+    </div>
+
+    <!-- 1. Introduction -->
+    <h2 id="introduction">1. Introduction</h2>
+    <p>This Software Design Document (SDD) describes the technical design for a Streamlit-based web application that allows vehicle owners and fleet managers to upload owner's manuals (PDFs, images, spreadsheets, and video) and query them using natural language questions.</p>
+    
+    <h3>Purpose & Scope</h3>
+    <p>The application solves the problem: "How do I quickly find information in a 200-page owner's manual?" by providing an AI-powered search interface. Users upload documents once per session and ask questions like <em>"What's the recommended tire pressure?"</em> or <em>"How do I reset the maintenance light?"</em> The system retrieves relevant passages from all uploaded documents and generates natural language answers.</p>
+    
+    <p><strong>In Scope for v1.0:</strong> File upload (multi-format), natural language querying, session-based storage, error handling, response performance optimization.</p>
+    <p><strong>Out of Scope for v1.0:</strong> User authentication, persistent storage, multi-user collaboration, analytics, mobile app (see <a href="../SRS.md">SRS § 1.3</a> for details).</p>
+
+    <div class="note">
+        <strong>Related Documents:</strong>
+        <ul>
+            <li><a href="../SRS.md">Software Requirements Specification (SRS.md)</a> — Product vision, user needs, features, use cases, functional & non-functional requirements, acceptance tests.</li>
+            <li><a href="../ACCEPTANCE_TESTS.md">Acceptance Tests (ACCEPTANCE_TESTS.md)</a> — Given/When/Then test scenarios for each requirement.</li>
+            <li><a href="adr/">Architecture Decision Records (adr/)</a> — Detailed reasoning for each key technical decision (framework choice, data storage, LLM integration, etc.).</li>
+        </ul>
+    </div>
+
+    <!-- 2. Architecture Overview -->
+    <h2 id="architecture-overview">2. Architecture Overview</h2>
+    
+    <h3>Deployment Shape</h3>
+    <p><strong>Single-Service Web Application.</strong> The entire application (UI, business logic, file parsing, querying, error handling) is deployed as a single Streamlit service. This is the simplest architecture that meets v1's requirements (few concurrent users, session-only storage, no external integrations).</p>
+    
+    <p><strong>Rationale:</strong> See <a href="adr/0001-use-streamlit-framework.md">ADR-0001: Use Streamlit as the Web Framework</a>. Streamlit eliminates the need for a separate frontend/backend REST API, built-in session state management, and automatic web server setup. For v1's scale (few concurrent users) and scope (session-only, no authentication), this single-service model is simpler than microservices or frontend/backend separation.</p>
+
+    <h3>External Dependencies</h3>
+    <ul>
+        <li><strong>OpenAI API:</strong> For embeddings (text-embedding-3-small) and LLM inference (GPT-4 or GPT-3.5-Turbo). Required at runtime; requires valid API key.</li>
+        <li><strong>No persistent database:</strong> v1 uses only in-memory storage (Streamlit session state) and temporary local caching. See <a href="adr/0004-session-only-storage.md">ADR-0004</a>.</li>
+        <li><strong>No external services:</strong> File parsing, vector indexing (FAISS), and session management all run locally within the Streamlit process.</li>
+    </ul>
+
+    <h3>Component Diagram</h3>
+    <div class="diagram-container">
+        <pre class="mermaid">
+graph TB
+    User["👤 User (Browser)"]
+    Streamlit["Streamlit Web App<br/>(Single Service)"]
+    
+    subgraph Components["Internal Components"]
+        UI["UI Layer<br/>(Streamlit Pages)"]
+        FileHandler["File Upload Handler<br/>(Validation, Routing)"]
+        Parser["Document Parser<br/>(PDF, Image, Excel, PPT, Video)"]
+        Embedder["Embedding Generator<br/>(OpenAI API)"]
+        Indexer["Semantic Indexer<br/>(FAISS)"]
+        QueryProc["Query Processor<br/>(Semantic Search)"]
+        LLM["Answer Generator<br/>(OpenAI LLM)"]
+        SessionMgr["Session Manager<br/>(State, Cleanup)"]
+        ErrorHandler["Error Handler<br/>(Logging, User Messages)"]
+    end
+    
+    subgraph External["External Services"]
+        OpenAI["OpenAI API<br/>(Embeddings + LLM)"]
+    end
+    
+    subgraph Memory["In-Memory Storage"]
+        SessionState["Streamlit Session State<br/>(Documents, Embeddings, Index, History)"]
+    end
+    
+    User -->|Browser| UI
+    UI -->|Upload File| FileHandler
+    UI -->|Submit Query| QueryProc
+    
+    FileHandler -->|Parse| Parser
+    Parser -->|Text Passages| Embedder
+    Embedder -->|API Call| OpenAI
+    Embedder -->|Embeddings| Indexer
+    Indexer -->|Vector Index| SessionState
+    
+    QueryProc -->|Semantic Search| Indexer
+    Indexer -->|Relevant Passages| LLM
+    LLM -->|API Call| OpenAI
+    LLM -->|Answer| UI
+    
+    FileHandler -->|Manage| SessionMgr
+    SessionMgr -->|Store/Clear| SessionState
+    
+    Parser -.->|Errors| ErrorHandler
+    Embedder -.->|Errors| ErrorHandler
+    LLM -.->|Errors| ErrorHandler
+    ErrorHandler -->|User Message| UI
+        </pre>
+        <div class="diagram-caption"><strong>Figure 1: Component Diagram.</strong> The Streamlit web app consists of 9 components orchestrated by session state. All file parsing, embedding, and indexing happen locally; only OpenAI API calls go external.</div>
+    </div>
+
+    <!-- 3. Tech Stack -->
+    <h2 id="tech-stack">3. Tech Stack</h2>
+    
+    <table>
+        <tr>
+            <th>Concern</th>
+            <th>Choice</th>
+            <th>Version</th>
+            <th>ADR</th>
+            <th>Rationale (Summary)</th>
+        </tr>
+        <tr>
+            <td>Web Framework</td>
+            <td>Streamlit</td>
+            <td>1.28.0+</td>
+            <td><a href="adr/0001-use-streamlit-framework.md">0001</a></td>
+            <td>Simplest for session-based apps; no frontend/backend separation needed; built-in state management.</td>
+        </tr>
+        <tr>
+            <td>Language / Runtime</td>
+            <td>Python</td>
+            <td>3.9+</td>
+            <td><a href="adr/0001-use-streamlit-framework.md">0001</a></td>
+            <td>Streamlit is Python-native; rich ecosystem for NLP, document parsing, and AI/ML.</td>
+        </tr>
+        <tr>
+            <td>LLM + Embeddings</td>
+            <td>OpenAI API (via LangChain)</td>
+            <td>Latest</td>
+            <td><a href="adr/0002-langchain-openai-api.md">0002</a></td>
+            <td>High-quality embeddings and answers; LangChain abstracts away API details; can swap providers later.</td>
+        </tr>
+        <tr>
+            <td>Vector Store</td>
+            <td>FAISS (in-memory)</td>
+            <td>1.7.0+</td>
+            <td><a href="adr/0003-faiss-vector-indexing.md">0003</a></td>
+            <td>Fast semantic search, runs locally, no external service; session-only storage aligns with v1 scope.</td>
+        </tr>
+        <tr>
+            <td>PDF Parsing</td>
+            <td>PyPDF2 or pdfplumber</td>
+            <td>Latest</td>
+            <td><a href="adr/0006-multi-format-parsing.md">0006</a></td>
+            <td>Robust PDF text extraction; handles encrypted/complex PDFs.</td>
+        </tr>
+        <tr>
+            <td>Image Processing (OCR)</td>
+            <td>EasyOCR or pytesseract</td>
+            <td>Latest</td>
+            <td><a href="adr/0006-multi-format-parsing.md">0006</a></td>
+            <td>EasyOCR is easy to integrate (no system dependencies); pytesseract requires Tesseract binary.</td>
+        </tr>
+        <tr>
+            <td>Excel/PowerPoint</td>
+            <td>pandas + python-pptx</td>
+            <td>Latest</td>
+            <td><a href="adr/0006-multi-format-parsing.md">0006</a></td>
+            <td>Standard libraries; pandas handles diverse Excel formats; python-pptx is the de facto PPTX library.</td>
+        </tr>
+        <tr>
+            <td>Video Handling</td>
+            <td>moviepy (metadata) + OpenAI Whisper API (speech-to-text, optional)</td>
+            <td>Latest</td>
+            <td><a href="adr/0006-multi-format-parsing.md">0006</a></td>
+            <td>moviepy extracts captions if present; Whisper for speech-to-text (separate API cost).</td>
+        </tr>
+        <tr>
+            <td>Session State / Caching</td>
+            <td>Streamlit @st.cache_data, @st.cache_resource, st.session_state</td>
+            <td>1.28.0+</td>
+            <td><a href="adr/0007-streamlit-caching.md">0007</a></td>
+            <td>Minimizes rerun costs in Streamlit's reruns-on-interaction model; automatic cache invalidation.</td>
+        </tr>
+        <tr>
+            <td>Testing Framework</td>
+            <td>pytest + pytest-mock</td>
+            <td>Latest</td>
+            <td>N/A</td>
+            <td>Industry standard; integrates with Streamlit via st.testing.</td>
+        </tr>
+        <tr>
+            <td>Logging</td>
+            <td>Python logging module + structured logs</td>
+            <td>3.9+ stdlib</td>
+            <td>N/A</td>
+            <td>Built-in; supports file and console output; can be enhanced with loguru if needed.</td>
+        </tr>
+        <tr>
+            <td>Deployment</td>
+            <td>Streamlit Cloud or self-hosted (Docker)</td>
+            <td>Latest</td>
+            <td>N/A</td>
+            <td>Streamlit Cloud is simplest for v1 (managed hosting); Docker for self-hosted / on-premise.</td>
+        </tr>
+    </table>
+
+    <div class="note">
+        <strong>Key Constraints & Dependencies:</strong>
+        <ul>
+            <li><strong>OpenAI API Key:</strong> Required to run the app. Users must provide a valid key. Cost is per-token (embeddings) + per-token (LLM inference). Monitor usage.</li>
+            <li><strong>Python 3.9+:</strong> Streamlit requires Python 3.9 or later; some libraries (pandas, pdfplumber) may require 3.10+.</li>
+            <li><strong>Memory:</strong> FAISS indexes are kept in-memory. For 10 documents with typical embeddings, ~50–100 MB memory per session. Scale v2+ if needed.</li>
+            <li><strong>No persistent database for v1:</strong> All data is ephemeral (session-only). v2 migration will require database schema setup (see <a href="schema.sql">schema.sql</a>).</li>
+        </ul>
+    </div>
+
+    <!-- 4. Diagrams -->
+    <h2 id="diagrams">4. Diagrams</h2>
+
+    <h3>Sequence Diagram: File Upload & Indexing Workflow (uc-01)</h3>
+    <div class="diagram-container">
+        <pre class="mermaid">
+sequenceDiagram
+    participant User
+    participant UI as UI (Streamlit)
+    participant FileHandler as File Upload Handler
+    participant Parser as Document Parser
+    participant Embedder as Embedding Generator
+    participant Indexer as Semantic Indexer
+    participant OpenAI
+    participant SessionMgr as Session Manager
+    participant ErrorHandler as Error Handler
+
+    User->>UI: Upload File
+    UI->>FileHandler: validate_file()
+    alt File format unsupported or size > 50 MB
+        FileHandler->>ErrorHandler: raise ValidationError
+        ErrorHandler->>UI: Return error message
+        UI->>User: Display error
+    else File valid
+        FileHandler->>SessionMgr: Check for duplicates (by hash)
+        alt Duplicate found
+            SessionMgr->>UI: DuplicateFileError
+            UI->>User: Display "already uploaded" message
+        else New file
+            FileHandler->>Parser: parse(file_bytes)
+            Parser->>Parser: Extract text (PDF, image, excel, etc.)
+            alt Parse fails (e.g., corrupted PDF)
+                Parser->>ErrorHandler: raise ParseError
+                ErrorHandler->>UI: Return error message
+                UI->>User: Display "unable to parse" error
+            else Parse succeeds
+                Parser->>UI: Return passages
+                UI->>Embedder: embed_passages(passages)
+                Embedder->>OpenAI: Call embedding API
+                OpenAI->>Embedder: Return embeddings
+                Embedder->>Indexer: Add to FAISS index
+                Indexer->>SessionMgr: Store document metadata
+                SessionMgr->>UI: Success response
+                UI->>User: Display "file uploaded successfully"
+            end
+        end
+    end
+        </pre>
+        <div class="diagram-caption"><strong>Figure 2: File Upload & Indexing Sequence Diagram (uc-01).</strong> Shows the happy path and error paths for uploading a file, validating, parsing, and indexing. Total time for typical 100-page PDF + embedding should be < 10 seconds (NFR-01.1).</div>
+    </div>
+
+    <h3>Sequence Diagram: Natural Language Query Workflow (uc-02)</h3>
+    <div class="diagram-container">
+        <pre class="mermaid">
+sequenceDiagram
+    participant User
+    participant UI as UI (Streamlit)
+    participant QueryProc as Query Processor
+    participant Embedder as Embedding Generator
+    participant Indexer as Semantic Indexer
+    participant LLM as Answer Generator
+    participant OpenAI
+    participant ErrorHandler as Error Handler
+
+    User->>UI: Submit query "What is tire pressure?"
+    UI->>QueryProc: process_query(query_text)
+    
+    alt No documents uploaded
+        QueryProc->>UI: Return "no documents" error
+        UI->>User: Display error message
+    else Documents exist
+        QueryProc->>Embedder: embed_query(query_text)
+        Embedder->>OpenAI: Call embedding API
+        OpenAI->>Embedder: Return query embedding
+        Embedder->>Indexer: search_faiss(query_embedding, top_k=5)
+        Indexer->>Indexer: Cosine similarity search
+        Indexer->>QueryProc: Return top-K passages with scores
+        
+        alt No relevant passages (all scores < threshold)
+            QueryProc->>UI: Return "no results" message
+            UI->>User: Display "no information found" message
+        else Relevant passages found
+            QueryProc->>LLM: generate_answer(query, passages)
+            LLM->>LLM: Build prompt (system + passages + query)
+            LLM->>OpenAI: Call LLM API (GPT-4 or 3.5-Turbo)
+            OpenAI->>LLM: Return generated answer
+            LLM->>UI: Return answer + sources + confidence
+            UI->>User: Display answer with document attribution
+        end
+    end
+        </pre>
+        <div class="diagram-caption"><strong>Figure 3: Query & Answer Generation Sequence Diagram (uc-02).</strong> Shows semantic search (FAISS), LLM answer generation, and error handling. Total response time should be < 30 seconds (NFR-01.2).</div>
+    </div>
+
+    <h3>Deployment Diagram</h3>
+    <div class="diagram-container">
+        <pre class="mermaid">
+graph TB
+    subgraph Internet["Internet / Public"]
+        BrowserUser["🌐 Browser<br/>(User)"]
+    end
+    
+    subgraph WebServer["Web Server / App Host"]
+        StreamlitApp["📦 Streamlit App<br/>(Python)<br/>- UI rendering<br/>- File parsing<br/>- Document indexing<br/>- Query processing"]
+        Memory["💾 In-Memory Storage<br/>- Session state<br/>- FAISS indexes<br/>- Embeddings"]
+    end
+    
+    subgraph ExternalAPIs["External APIs"]
+        OpenAIAPI["🔑 OpenAI API<br/>- Embeddings<br/>- LLM (GPT)"]
+    end
+    
+    BrowserUser -->|HTTPS| StreamlitApp
+    StreamlitApp <-->|Streamlit<br/>WebSocket| BrowserUser
+    StreamlitApp <-->|In-Memory| Memory
+    StreamlitApp -->|HTTPS<br/>API Key| OpenAIAPI
+        </pre>
+        <div class="diagram-caption"><strong>Figure 4: Deployment Diagram.</strong> Single Streamlit web server with in-memory storage (no persistent database). External dependency: OpenAI API for embeddings and LLM inference.</div>
+    </div>
+
+    <!-- 5. API Boundary -->
+    <h2 id="api-boundary">5. API Boundary</h2>
+    
+    <p>The application is a Streamlit web app (not a traditional REST service). However, the data interfaces are well-defined via the OpenAPI specification, which documents:</p>
+    <ul>
+        <li>File upload request/response schema</li>
+        <li>Query request/response schema</li>
+        <li>Session management endpoints</li>
+        <li>Error response formats</li>
+    </ul>
+    
+    <p><strong>See:</strong> <a href="openapi.yaml">openapi.yaml</a> for the complete API specification.</p>
+    
+    <h3>Key Endpoints (Implicit Streamlit Interface)</h3>
+    <table>
+        <tr>
+            <th>Endpoint (Logical)</th>
+            <th>Method</th>
+            <th>Purpose</th>
+            <th>Request Schema</th>
+            <th>Response Schema</th>
+        </tr>
+        <tr>
+            <td>/api/upload</td>
+            <td>POST</td>
+            <td>Upload and index a document file</td>
+            <td><code>multipart/form-data { file, session_id }</code></td>
+            <td><code>UploadResponse { status, filename, document_id, message }</code></td>
+        </tr>
+        <tr>
+            <td>/api/query</td>
+            <td>POST</td>
+            <td>Submit a natural language question</td>
+            <td><code>application/json { query, session_id }</code></td>
+            <td><code>QueryResponse { status, answer, sources[], confidence, response_time_ms }</code></td>
+        </tr>
+        <tr>
+            <td>/api/session/documents</td>
+            <td>GET</td>
+            <td>List all documents in the session</td>
+            <td>N/A (session implicit)</td>
+            <td><code>DocumentListResponse { document_count, documents[] }</code></td>
+        </tr>
+        <tr>
+            <td>/api/session/clear</td>
+            <td>POST</td>
+            <td>Clear session (delete all documents and state)</td>
+            <td>N/A</td>
+            <td><code>{ message: "Session cleared successfully" }</code></td>
+        </tr>
+    </table>
+
+    <h3>Error Codes</h3>
+    <table>
+        <tr>
+            <th>Error Code</th>
+            <th>HTTP Status</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>UNSUPPORTED_FORMAT</td>
+            <td>400</td>
+            <td>File format not in (PDF, image, Excel, PowerPoint, video)</td>
+        </tr>
+        <tr>
+            <td>FILE_TOO_LARGE</td>
+            <td>400</td>
+            <td>File size exceeds 50 MB</td>
+        </tr>
+        <tr>
+            <td>DUPLICATE_FILE</td>
+            <td>409</td>
+            <td>File already uploaded in this session (by hash)</td>
+        </tr>
+        <tr>
+            <td>PARSE_FAILED</td>
+            <td>400</td>
+            <td>Unable to extract text from file (corrupted, encrypted, etc.)</td>
+        </tr>
+        <tr>
+            <td>NO_DOCUMENTS</td>
+            <td>400</td>
+            <td>Query submitted but no documents in session</td>
+        </tr>
+        <tr>
+            <td>QUERY_TIMEOUT</td>
+            <td>408</td>
+            <td>Query processing exceeded 30 seconds</td>
+        </tr>
+        <tr>
+            <td>INTERNAL_ERROR</td>
+            <td>500</td>
+            <td>Unexpected server error</td>
+        </tr>
+    </table>
+
+    <!-- 6. Data Boundary -->
+    <h2 id="data-boundary">6. Data Boundary</h2>
+    
+    <p>v1.0 uses <strong>session-only in-memory storage</strong>. No persistent database. Data is automatically cleaned up when the session ends.</p>
+    
+    <h3>Session State Structure</h3>
+    <p>All data lives in Streamlit's <code>st.session_state</code> dictionary:</p>
+    <pre><code>st.session_state = {
+    "session_id": "uuid-abc123",
+    "created_at": 2026-08-19T10:30:00Z,
+    "documents": {
+        "doc_id_1": Document(
+            document_id="doc_id_1",
+            filename="Honda_Civic_Manual.pdf",
+            file_format="pdf",
+            uploaded_at=...,
+            passages=[Passage(...), Passage(...), ...],
+            parsed_successfully=True
+        ),
+        ...
+    },
+    "faiss_index": FAISS(...),  # In-memory vector index
+    "passage_embeddings": {     # Map passage_id -> embedding vector
+        "passage_0": [0.1, 0.2, ...],
+        ...
+    },
+    "query_history": [
+        Query(query_id="q_1", text="...", answer="...", sources=[...], ...),
+        ...
+    ]
+}</code></pre>
+    
+    <h3>Logical Data Model</h3>
+    <p>For reference and future v2 migration, see the logical SQL schema in <a href="schema.sql">schema.sql</a>. The schema documents:</p>
+    <ul>
+        <li><strong>sessions:</strong> User session metadata</li>
+        <li><strong>documents:</strong> Uploaded file metadata</li>
+        <li><strong>parsed_content:</strong> Text passages extracted from documents</li>
+        <li><strong>embeddings:</strong> Vector embeddings of passages (reference; stored in-memory FAISS in v1)</li>
+        <li><strong>queries:</strong> Query history</li>
+        <li><strong>query_sources:</strong> Links queries to the passages used to answer them</li>
+    </ul>
+    
+    <div class="note">
+        <strong>Why no persistent database in v1?</strong> The SRS explicitly states documents are temporary (session-only); adding a database adds operational overhead (migrations, backups, access control) with no immediate value. v2 migration path is documented in <a href="schema.sql">schema.sql</a>.
+    </div>
+
+    <!-- 7. Internal Design -->
+    <h2 id="internal-design">7. Internal Design</h2>
+
+    <h3>Component Responsibilities & Dependencies</h3>
+
+    <table>
+        <tr>
+            <th>Component</th>
+            <th>Layer</th>
+            <th>Single Responsibility</th>
+            <th>Dependencies</th>
+        </tr>
+        <tr>
+            <td><strong>UIPage</strong></td>
+            <td>Shell</td>
+            <td>Render Streamlit pages and handle user interactions (file upload, query submission).</td>
+            <td>Depends on: FileHandler, QueryProcessor, SessionManager</td>
+        </tr>
+        <tr>
+            <td><strong>FileUploadHandler</strong></td>
+            <td>Shell</td>
+            <td>Validate file (format, size), route to appropriate parser, manage file lifecycle.</td>
+            <td>Depends on: DocumentParser, SessionManager, ErrorHandler</td>
+        </tr>
+        <tr>
+            <td><strong>DocumentParser</strong></td>
+            <td>Core + Shell</td>
+            <td>Extract text from files (PDF, image, Excel, PowerPoint, video). Core: parsing logic. Shell: API calls (OCR, video transcription).</td>
+            <td>Depends on: PyPDF2, pdfplumber, EasyOCR, pandas, python-pptx, moviepy; OpenAI Whisper API (optional, for video)</td>
+        </tr>
+        <tr>
+            <td><strong>EmbeddingGenerator</strong></td>
+            <td>Core + Shell</td>
+            <td>Generate vector embeddings for passages and queries. Core: embedding logic. Shell: OpenAI API integration, caching.</td>
+            <td>Depends on: LangChain, OpenAI API; caches via @st.cache_resource</td>
+        </tr>
+        <tr>
+            <td><strong>SemanticIndexer</strong></td>
+            <td>Core</td>
+            <td>Build and query FAISS in-memory index for semantic search.</td>
+            <td>Depends on: FAISS, numpy</td>
+        </tr>
+        <tr>
+            <td><strong>QueryProcessor</strong></td>
+            <td>Core</td>
+            <td>Coordinate semantic search: embed query, search FAISS, retrieve top-K passages, score relevance.</td>
+            <td>Depends on: EmbeddingGenerator, SemanticIndexer</td>
+        </tr>
+        <tr>
+            <td><strong>AnswerGenerator</strong></td>
+            <td>Core + Shell</td>
+            <td>Generate natural language answers using LLM. Core: prompt construction. Shell: OpenAI API calls, response parsing.</td>
+            <td>Depends on: LangChain, OpenAI API</td>
+        </tr>
+        <tr>
+            <td><strong>SessionManager</strong></td>
+            <td>Shell</td>
+            <td>Manage session state lifecycle (create, store, clear on timeout/user action).</td>
+            <td>Depends on: st.session_state</td>
+        </tr>
+        <tr>
+            <td><strong>ErrorHandler</strong></td>
+            <td>Shell</td>
+            <td>Catch exceptions, log them, and format user-friendly error messages (no stack traces, API keys, or internal details).</td>
+            <td>Depends on: Python logging module</td>
+        </tr>
+    </table>
+
+    <h3>Dependency Graph & Loose Coupling</h3>
+    <pre><code>UIPage
+├── FileUploadHandler
+│   ├── DocumentParser (depends on format-specific libs)
+│   ├── EmbeddingGenerator
+│   ├── SemanticIndexer
+│   └── SessionManager
+├── QueryProcessor
+│   ├── EmbeddingGenerator
+│   ├── SemanticIndexer
+│   └── AnswerGenerator
+├── SessionManager
+└── ErrorHandler (cross-cutting, all components depend on it)
+
+Key Coupling Points:
+- DocumentParser → EmbeddingGenerator: Flows parsed passages to embedding.
+- QueryProcessor → AnswerGenerator: Flows retrieved passages to LLM.
+- All components → ErrorHandler: For centralized error handling.
+- All components → SessionManager: For session-state access.
+
+Abstraction Boundaries:
+- DocumentParser exposes Passage data class (no format-specific details leaked).
+- QueryProcessor exposes QueryResult (answer + sources + confidence).
+- EmbeddingGenerator exposes embedding vectors (Streamlit caches abstract away API).
+- SemanticIndexer exposes search results (passage IDs + relevance scores).
+    </code></pre>
+
+    <h3>Functional Core vs. Imperative Shell</h3>
+    
+    <h4>DocumentParser</h4>
+    <ul>
+        <li><strong>Core (Pure Logic):</strong> parse_pdf(), parse_image(), parse_excel(), parse_powerpoint() — extract text, no I/O side effects.</li>
+        <li><strong>Shell (I/O):</strong> handle_upload() — routes to parsers, calls OCR APIs, handles errors.</li>
+    </ul>
+
+    <h4>EmbeddingGenerator</h4>
+    <ul>
+        <li><strong>Core (Pure Logic):</strong> normalize_embeddings(), cache_key_for_passages() — utility functions.</li>
+        <li><strong>Shell (I/O):</strong> embed_passages() — calls OpenAI API, caches results via @st.cache_resource.</li>
+    </ul>
+
+    <h4>SemanticIndexer</h4>
+    <ul>
+        <li><strong>Core (Pure Logic):</strong> build_index(), search_by_similarity() — FAISS operations, no external I/O.</li>
+        <li><strong>Shell (I/O):</strong> None; FAISS is fast enough that I/O optimization not needed for v1.</li>
+    </ul>
+
+    <h4>QueryProcessor</h4>
+    <ul>
+        <li><strong>Core (Pure Logic):</strong> rank_passages_by_score(), filter_low_confidence() — scoring and ranking logic.</li>
+        <li><strong>Shell (I/O):</strong> process_query() — orchestrates calls to EmbeddingGenerator and AnswerGenerator.</li>
+    </ul>
+
+    <h4>AnswerGenerator</h4>
+    <ul>
+        <li><strong>Core (Pure Logic):</strong> build_prompt(), parse_llm_response() — pure text manipulation.</li>
+        <li><strong>Shell (I/O):</strong> generate_answer() — calls OpenAI LLM API, handles timeouts/errors.</li>
+    </ul>
+
+    <h3>Design Principles Applied</h3>
+    <table>
+        <tr>
+            <th>Principle</th>
+            <th>Application</th>
+        </tr>
+        <tr>
+            <td><strong>Single Responsibility</strong></td>
+            <td>Each component has one reason to change (e.g., DocumentParser changes only if parsing logic changes; EmbeddingGenerator changes only if embedding strategy changes). Verified: one sentence per component responsibility (see table above).</td>
+        </tr>
+        <tr>
+            <td><strong>Loose Coupling</strong></td>
+            <td>Components depend on data structures (Passage, QueryResult) and abstract interfaces (OpenAI API via LangChain) rather than internals. Files are not directly passed between components; they are parsed into Passages first.</td>
+        </tr>
+        <tr>
+            <td><strong>High Cohesion</strong></td>
+            <td>All embedding-related logic (caching, OpenAI API calls) is in EmbeddingGenerator. All search-related logic is in QueryProcessor + SemanticIndexer.</td>
+        </tr>
+        <tr>
+            <td><strong>Explicit Dependencies</strong></td>
+            <td>Components are initialized with their dependencies (e.g., AnswerGenerator receives EmbeddingGenerator, SessionManager). No hidden singletons or globals (except @st.cache_resource decorators, which are explicit).</td>
+        </tr>
+        <tr>
+            <td><strong>Functional Core / Imperative Shell</strong></td>
+            <td>Business logic (ranking, scoring, prompt building) is pure and testable without mocking; I/O (API calls, file reading) is isolated in shell layers and mocked in tests.</td>
+        </tr>
+    </table>
+
+    <!-- 8. Cross-Cutting Concerns -->
+    <h2 id="cross-cutting">8. Cross-Cutting Concerns</h2>
+
+    <h3>Error Handling</h3>
+    <p>All errors are caught at component boundaries and routed through ErrorHandler, which:</p>
+    <ul>
+        <li>Logs the full error (stack trace, context) for debugging.</li>
+        <li>Formats a user-friendly message (no stack traces, API keys, file paths).</li>
+        <li>Returns an ErrorResponse with an error_code (UNSUPPORTED_FORMAT, PARSE_FAILED, etc.) for client-side handling.</li>
+    </ul>
+    <p><strong>Example:</strong> If DocumentParser encounters a corrupted PDF, it raises ParseError. FileUploadHandler catches it, calls ErrorHandler.handle_exception(), and returns "Unable to parse this file..." to the user.</p>
+
+    <h3>Observability & Logging</h3>
+    <p>Python logging module (stdlib) with structured logs:</p>
+    <ul>
+        <li><strong>File uploads:</strong> Log filename, file_format, file_hash, parsed_successfully, parse time.</li>
+        <li><strong>Queries:</strong> Log query_text, num_passages_retrieved, confidence, response_time_ms.</li>
+        <li><strong>API calls:</strong> Log API (OpenAI), endpoint, request tokens, response tokens, latency.</li>
+        <li><strong>Errors:</strong> Log exception, component, context (e.g., "error in file_upload during parsing").</li>
+    </ul>
+    <p>Logs are written to stderr (default Streamlit behavior) and optionally to a file for later analysis.</p>
+
+    <h3>Caching & Performance Optimization</h3>
+    <p>Streamlit's rerun-on-interaction model can be expensive without caching. Mitigations:</p>
+    <ul>
+        <li><strong>@st.cache_data:</strong> Cache parsed passages (immutable data transformations). Cache key: file_hash.</li>
+        <li><strong>@st.cache_resource:</strong> Cache FAISS index and OpenAI client. Cache key: session_id.</li>
+        <li><strong>st.session_state:</strong> Store embeddings and query history per-session (not recomputed on rerun).</li>
+    </ul>
+    <p>See ADR-0007 for caching strategy details.</p>
+
+    <h3>API Key Management</h3>
+    <p>OpenAI API key is required to run the app. Best practices:</p>
+    <ul>
+        <li>Store in environment variable (OPENAI_API_KEY) or Streamlit secrets (.streamlit/secrets.toml).</li>
+        <li>Never log or display the key.</li>
+        <li>Rotate key if exposed; set rate limits in OpenAI dashboard.</li>
+    </ul>
+
+    <!-- 9. Architecture Decisions -->
+    <h2 id="decisions">9. Architecture Decisions</h2>
+    
+    <p>All key technical decisions are documented as Architecture Decision Records (ADRs) in the <a href="adr/">adr/</a> directory.</p>
+    
+    <table>
+        <tr>
+            <th>ADR #</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Related Requirement</th>
+        </tr>
+        <tr>
+            <td><a href="adr/0001-use-streamlit-framework.md">0001</a></td>
+            <td>Use Streamlit as the Web Framework</td>
+            <td>Accepted</td>
+            <td>feat-01, feat-02 (UI/UX)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0002-langchain-openai-api.md">0002</a></td>
+            <td>Use Python with LangChain + OpenAI API for Natural Language Querying</td>
+            <td>Accepted</td>
+            <td>feat-02 (multi-document query)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0003-faiss-vector-indexing.md">0003</a></td>
+            <td>Use FAISS for In-Memory Vector Indexing and Semantic Search</td>
+            <td>Accepted</td>
+            <td>feat-02 (relevance retrieval)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0004-session-only-storage.md">0004</a></td>
+            <td>Use Session-Only Temporary Storage; No Persistent Database</td>
+            <td>Accepted</td>
+            <td>feat-04 (session-based storage)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0005-openai-embeddings.md">0005</a></td>
+            <td>Use OpenAI Embeddings for Semantic Vector Representation</td>
+            <td>Accepted</td>
+            <td>feat-02 (semantic search)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0006-multi-format-parsing.md">0006</a></td>
+            <td>Use Multi-Format File Parsing with PyPDF2, python-pptx, Pandas, Pillow, and moviepy</td>
+            <td>Accepted</td>
+            <td>feat-01 (file upload)</td>
+        </tr>
+        <tr>
+            <td><a href="adr/0007-streamlit-caching.md">0007</a></td>
+            <td>Use Streamlit's Built-in Caching Decorators to Minimize Rerun Costs</td>
+            <td>Accepted</td>
+            <td>feat-05 (response performance), NFR-01.1/01.2/01.3</td>
+        </tr>
+    </table>
+
+    <!-- 10. Component-Level Tests -->
+    <h2 id="component-tests">10. Component-Level Tests</h2>
+    
+    <p>Component-level tests (not to be confused with acceptance tests) verify the internal design elements — each component's responsibility, the functional core / shell split, and error paths.</p>
+    
+    <p><strong>See:</strong> <a href="Component-Tests.md">Component-Tests.md</a> for detailed test specifications, including:</p>
+    <ul>
+        <li><strong>CT-01:</strong> File Upload & Parsing (PDFs, images, Excel, PowerPoint, video, error cases)</li>
+        <li><strong>CT-02:</strong> Embedding & Indexing (FAISS, similarity search)</li>
+        <li><strong>CT-03:</strong> Query Processing & Answer Generation (LLM integration, timeouts)</li>
+        <li><strong>CT-04:</strong> Session Management (isolation, cleanup)</li>
+        <li><strong>CT-05:</strong> Error Handling (logging, user messages, no internal details)</li>
+        <li><strong>CT-06:</strong> Performance (NFR verification — parsing < 10s, queries < 30s)</li>
+    </ul>
+    
+    <p><strong>Test Framework:</strong> pytest + pytest-mock for mocking API calls. Pure-logic components (DocumentParser, SemanticIndexer, QueryProcessor) are tested without mocks. Shell components (EmbeddingGenerator, AnswerGenerator) are tested with mocked API calls.</p>
+
+    <!-- 11. Traceability -->
+    <h2 id="traceability">11. Traceability Matrix</h2>
+    
+    <p>This matrix links requirements → use cases → design components → API endpoints → schema tables → component tests.</p>
+    
+    <table>
+        <tr>
+            <th>Requirement / Use Case</th>
+            <th>Components</th>
+            <th>API Endpoint(s)</th>
+            <th>Schema Table(s)</th>
+            <th>ADR(s)</th>
+            <th>Diagram(s)</th>
+            <th>Component Test(s)</th>
+        </tr>
+        <tr>
+            <td><strong>uc-01: Upload Owner's Manual</strong><br/>(feat-01, need-01, FR-01.*)</td>
+            <td>UIPage, FileUploadHandler, DocumentParser, EmbeddingGenerator, SemanticIndexer, SessionManager, ErrorHandler</td>
+            <td>/api/upload</td>
+            <td>documents, parsed_content, embeddings</td>
+            <td>0001, 0006, 0007</td>
+            <td>Fig 1 (component), Fig 2 (sequence)</td>
+            <td>CT-01.1–01.10</td>
+        </tr>
+        <tr>
+            <td><strong>uc-02: Query Multiple Documents</strong><br/>(feat-02, need-02/03/06, FR-02.*, NFR-01.*)</td>
+            <td>UIPage, QueryProcessor, EmbeddingGenerator, SemanticIndexer, AnswerGenerator, SessionManager, ErrorHandler</td>
+            <td>/api/query</td>
+            <td>queries, query_sources, parsed_content</td>
+            <td>0002, 0003, 0005, 0007</td>
+            <td>Fig 1 (component), Fig 3 (sequence)</td>
+            <td>CT-03.1–03.4, CT-06.2</td>
+        </tr>
+        <tr>
+            <td><strong>uc-03: Handle File Parse Error</strong><br/>(feat-03, need-04, FR-03.*)</td>
+            <td>FileUploadHandler, DocumentParser, ErrorHandler, UIPage</td>
+            <td>/api/upload (error response)</td>
+            <td>N/A</td>
+            <td>0001, 0006</td>
+            <td>Fig 2 (sequence, alt path)</td>
+            <td>CT-05.1–05.2</td>
+        </tr>
+        <tr>
+            <td><strong>uc-04: Clear Session Documents</strong><br/>(feat-04, need-05, FR-04.*)</td>
+            <td>UIPage, SessionManager</td>
+            <td>/api/session/clear</td>
+            <td>sessions (cleanup)</td>
+            <td>0004</td>
+            <td>Fig 4 (deployment)</td>
+            <td>CT-04.1–04.2</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-01 (Performance):</strong><br/>Parsing < 10s, Query < 30s, 5 concurrent users</td>
+            <td>DocumentParser, EmbeddingGenerator, QueryProcessor, AnswerGenerator</td>
+            <td>/api/upload (response time), /api/query (response time)</td>
+            <td>N/A</td>
+            <td>0007</td>
+            <td>N/A</td>
+            <td>CT-06.1–06.2</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-02 (Scalability):</strong><br/>≤ 50 MB files, ≤ 10 docs/session</td>
+            <td>FileUploadHandler (size validation), SessionManager (doc count)</td>
+            <td>/api/upload (size check)</td>
+            <td>N/A</td>
+            <td>0001, 0003, 0004</td>
+            <td>N/A</td>
+            <td>CT-01.5, CT-01.7</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-03 (Reliability):</strong><br/>95% uptime, graceful errors, logging</td>
+            <td>ErrorHandler, all components</td>
+            <td>All (error responses)</td>
+            <td>N/A (logs only)</td>
+            <td>0001</td>
+            <td>N/A</td>
+            <td>CT-05.1–05.2</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-04 (Security):</strong><br/>No persistence beyond session, HTTPS, no internal logging</td>
+            <td>SessionManager, ErrorHandler</td>
+            <td>All (HTTPS requirement)</td>
+            <td>N/A (session-only)</td>
+            <td>0004</td>
+            <td>Fig 4 (deployment)</td>
+            <td>CT-04.2, CT-05.2</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-05 (Usability):</strong><br/>Intuitive UI, clear errors, progress indicators</td>
+            <td>UIPage, ErrorHandler</td>
+            <td>N/A</td>
+            <td>N/A</td>
+            <td>0001</td>
+            <td>N/A</td>
+            <td>CT-05.1–05.2 (error clarity)</td>
+        </tr>
+        <tr>
+            <td><strong>NFR-06 (Compatibility):</strong><br/>PDF, images, Excel, PowerPoint, video; Chrome, Firefox, Safari, Edge</td>
+            <td>DocumentParser, UIPage</td>
+            <td>/api/upload (format validation)</td>
+            <td>documents.file_format</td>
+            <td>0006</td>
+            <td>N/A</td>
+            <td>CT-01.1–01.5</td>
+        </tr>
+    </table>
+
+    <div class="note">
+        <strong>Coverage Check:</strong> Every requirement (use case, FR, NFR) has at least one design element (component, ADR, API, test). No gaps detected.
+    </div>
+
+    <!-- 12. Open Questions & Future Considerations -->
+    <h2 id="open-questions">12. Open Questions & Future Considerations</h2>
+    
+    <h3>Explicitly Deferred (v2 Candidates)</h3>
+    <ul>
+        <li><strong>User Authentication & Authorization:</strong> Add user_id tracking, login/logout, per-user document libraries. Requires database and session/token management. Deferred to v2.</li>
+        <li><strong>Persistent Storage:</strong> Save documents and queries beyond session end. Requires database schema (see <a href="schema.sql">schema.sql</a>) and migration of session-only data structures. Deferred to v2.</li>
+        <li><strong>Vector Database Migration:</strong> Move FAISS from in-memory to a persistent vector DB (Pinecone, Weaviate). Required if documents need to persist across sessions. Deferred to v2.</li>
+        <li><strong>Multi-User Collaboration:</strong> Share documents, collaborate on queries, annotations. Requires authentication + permissions. Deferred to v2+.</li>
+        <li><strong>Advanced Analytics:</strong> Track which documents/queries are most popular, user satisfaction, model performance. Deferred to v2.</li>
+        <li><strong>Fine-Tuned LLM:</strong> Train a model specifically on automotive manuals for higher accuracy. Current design uses general-purpose GPT-4; fine-tuning introduces data governance complexity. Deferred to v2+.</li>
+        <li><strong>Mobile App:</strong> iOS/Android native app. v1 is web-only. Deferred to v2+ if mobile usage is high.</li>
+        <li><strong>Batch Query Processing:</strong> Submit multiple questions at once. v1 handles one query at a time. Deferred to v2.</li>
+        <li><strong>Custom NLP Models:</strong> Switch from OpenAI to a custom or open-source LLM (LLaMA, Mistral). Current design abstracts via LangChain; swapping is low-effort. Not deferred; just documented in ADR-0002 alternatives.</li>
+    </ul>
+
+    <h3>Open Design Questions (v1)</h3>
+    <ul>
+        <li><strong>Session Timeout Duration:</strong> How long before inactive sessions are cleared? Recommend 1 hour based on typical manual-reading sessions, but should be configurable.</li>
+        <li><strong>Max Documents per Session:</strong> Design supports 10 documents (to fit embeddings in memory); confirm this limit with stakeholders or implement dynamic limits based on available memory.</li>
+        <li><strong>LLM Model Choice (GPT-4 vs. GPT-3.5-Turbo):</strong> GPT-4 is more accurate but slower/pricier. GPT-3.5-Turbo is faster/cheaper. Recommend starting with 3.5-Turbo and upgrading based on quality feedback.</li>
+        <li><strong>Embedding Chunk Size:</strong> Passages are split into chunks for embedding. Optimal size? Recommend 512 tokens (~1,500 chars); adjust based on NFR-01 performance testing.</li>
+        <li><strong>Relevance Threshold:</strong> What's the minimum relevance score to include a passage in the LLM prompt? Recommend 0.5 (cosine similarity) as a starting point; tune based on false positives/negatives in testing.</li>
+        <li><strong>Cost Tracking:</strong> Should we track and report OpenAI API costs per session/user for billing? Not included in v1; can be added later if needed for paid tiers.</li>
+    </ul>
+
+    <h3>Known Limitations (v1)</h3>
+    <ul>
+        <li><strong>No horizontal scaling:</strong> Single Streamlit service can't be load-balanced across multiple instances (session state is per-instance). Scaling v2+ requires a separate backend + frontend.</li>
+        <li><strong>No caching of queries across sessions:</strong> If a user asks the same question twice (in different sessions), the query runs twice. v2 with persistent DB can cache query results.</li>
+        <li><strong>Limited video support:</strong> Videos must have captions or OpenAI Whisper API enabled. No other audio/video analysis. Deferred to v2.</li>
+        <li><strong>English-only (default):</strong> OCR and LLM work best for English. Multi-language support is not tested in v1.</li>
+        <li><strong>No document versioning:</strong> If a user uploads a new version of the same manual (same filename, different content), it overwrites the old one in the same session. This is by design (session-only, no history), but can be improved in v2.</li>
+    </ul>
+
+    <div class="highlight">
+        <strong>Next Steps:</strong>
+        <ol>
+            <li>Get stakeholder approval on this SDD and ADRs.</li>
+            <li>Set up development environment: Python 3.9+, pip/conda, Git.</li>
+            <li>Implement components in priority order:
+                <ol type="a">
+                    <li>SessionManager + UIPage skeleton</li>
+                    <li>FileUploadHandler + DocumentParser (test with PDFs first)</li>
+                    <li>EmbeddingGenerator (test with OpenAI API key)</li>
+                    <li>SemanticIndexer + QueryProcessor</li>
+                    <li>AnswerGenerator + error handling</li>
+                </ol>
+            </li>
+            <li>Implement component-level tests (CT-01 through CT-06) in parallel.</li>
+            <li>Run acceptance tests (AT-01 through AT-06) against the full app.</li>
+            <li>Performance testing (NFR-01 validation).</li>
+            <li>Deployment prep (Dockerfile, Streamlit Cloud config, secret management).</li>
+        </ol>
+    </div>
+
+    <div class="footer">
+        <p>Software Design Document for Document Query Application</p>
+        <p>Version 1.0 | Date: 2026-08-19 | Status: Draft</p>
+        <p><a href="adr/">View ADRs</a> | <a href="openapi.yaml">View OpenAPI Spec</a> | <a href="schema.sql">View Database Schema</a> | <a href="Component-Tests.md">View Component Tests</a></p>
+    </div>
+
+</div>
+</body>
+</html>

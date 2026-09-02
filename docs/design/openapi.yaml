@@ -1,0 +1,286 @@
+openapi: 3.0.0
+info:
+  title: Document Query Application API
+  description: |
+    This specification documents the data structures and workflows for the Document Query Application.
+    Note: The application is built with Streamlit, which is not a traditional REST API. This spec documents
+    the session-based data flow, file upload payloads, and query/response structures for internal consistency
+    and frontend-backend integration (if a separate frontend is added in a future version).
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8501
+    description: Streamlit development server (default)
+  - url: https://app.example.com
+    description: Production deployment
+
+paths:
+  /api/upload:
+    post:
+      summary: Upload a document file
+      description: |
+        Accepts a file upload from the user. The file is validated (format, size),
+        parsed (text extraction), and indexed for querying.
+      operationId: uploadDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The document file (PDF, image, Excel, PowerPoint, or video)
+                session_id:
+                  type: string
+                  description: The user's session identifier (implicit in Streamlit)
+              required:
+                - file
+      responses:
+        '200':
+          description: File successfully uploaded and indexed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Invalid file format or size exceeds limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate file already uploaded in this session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/query:
+    post:
+      summary: Submit a natural language query
+      description: |
+        Accepts a natural language question, searches all indexed documents,
+        and returns an answer with source attribution.
+      operationId: queryDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Query processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueryResponse'
+        '400':
+          description: Invalid query or no documents uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '408':
+          description: Query processing timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/session/documents:
+    get:
+      summary: List all documents in the current session
+      description: Returns metadata about all uploaded documents.
+      operationId: listDocuments
+      responses:
+        '200':
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+
+  /api/session/clear:
+    post:
+      summary: Clear the session (delete all documents)
+      description: |
+        Removes all uploaded files, indexes, and query history from the session.
+        Called when the user clicks "Clear Session" or on session timeout.
+      operationId: clearSession
+      responses:
+        '200':
+          description: Session cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Session cleared successfully"
+
+components:
+  schemas:
+    UploadResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, duplicate]
+          example: "success"
+        filename:
+          type: string
+          example: "vehicle_manual.pdf"
+        document_id:
+          type: string
+          description: Unique identifier for this document in the session
+          example: "doc_abc123"
+        message:
+          type: string
+          example: "File uploaded successfully: vehicle_manual.pdf"
+        file_size_bytes:
+          type: integer
+          example: 5242880
+        page_count:
+          type: integer
+          description: Estimated number of pages or sections (for PDFs, may be approximate for other formats)
+          example: 142
+      required:
+        - status
+        - filename
+        - message
+
+    QueryRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Natural language question about the uploaded documents
+          example: "What's the recommended tire pressure?"
+        session_id:
+          type: string
+          description: The user's session identifier (implicit in Streamlit)
+      required:
+        - query
+
+    QueryResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success, no_results, out_of_scope, error]
+          example: "success"
+        answer:
+          type: string
+          description: The generated answer or error message
+          example: "The recommended tire pressure is 32 PSI for all four tires."
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceAttribution'
+          description: Document(s) and locations where the answer was found
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Confidence score of the answer (0 = low, 1 = high)
+          example: 0.92
+        response_time_ms:
+          type: integer
+          description: Time taken to process the query in milliseconds
+          example: 1250
+      required:
+        - status
+        - answer
+
+    SourceAttribution:
+      type: object
+      properties:
+        document_id:
+          type: string
+          example: "doc_abc123"
+        document_name:
+          type: string
+          example: "Honda_Civic_2023_Owners_Manual.pdf"
+        section:
+          type: string
+          description: The section or page reference (format depends on document type)
+          example: "Specifications, Page 42"
+        passage:
+          type: string
+          description: The exact text passage that was used to generate the answer
+          example: "The recommended tire pressure is 32 PSI (220 kPa) for all four tires at normal driving conditions."
+      required:
+        - document_id
+        - document_name
+
+    DocumentListResponse:
+      type: object
+      properties:
+        document_count:
+          type: integer
+          example: 2
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentMetadata'
+
+    DocumentMetadata:
+      type: object
+      properties:
+        document_id:
+          type: string
+          example: "doc_abc123"
+        filename:
+          type: string
+          example: "vehicle_manual.pdf"
+        file_format:
+          type: string
+          enum: [pdf, image, excel, powerpoint, video, unknown]
+          example: "pdf"
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2026-08-19T10:30:00Z"
+        file_size_bytes:
+          type: integer
+          example: 5242880
+        parsed_successfully:
+          type: boolean
+          example: true
+        error_message:
+          type: string
+          description: If parsing failed, the error message
+          example: null
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+          example: "error"
+        error_code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - UNSUPPORTED_FORMAT
+            - FILE_TOO_LARGE
+            - DUPLICATE_FILE
+            - PARSE_FAILED
+            - NO_DOCUMENTS
+            - QUERY_TIMEOUT
+            - INTERNAL_ERROR
+          example: "FILE_TOO_LARGE"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "File is too large (max 50 MB). Please upload a smaller file."
+      required:
+        - status
+        - message

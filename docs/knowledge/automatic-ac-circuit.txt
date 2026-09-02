@@ -1,0 +1,188 @@
+# Automatic A/C Circuit — Knowledge Document
+
+**Vehicle:** 2020 Jeep Compass Altitude (2.4L Eng)
+**Source:** ProDemand wiring diagram manual, "AIR CONDITIONING" section, *Automatic A/C Circuit* Fig. 1–5 of 5
+**Related but distinct circuit:** *Manual A/C Circuit* (Fig. 6–10 of 5 in the same manual) — same power/relay layout but omits the Sun Sensor, In-Car Temperature Sensor, and Auto-Headlamp signal, since a manually-operated system doesn't need those automatic-climate-control inputs.
+
+> **Note on accuracy:** This document was compiled from an OCR'd scan of a multi-page fold-out wiring diagram. Wire colors, component names, connector/splice IDs, and general signal flow are transcribed as printed. Exact pin numbers on the 30-way HVAC Module connector could not be perfectly aligned from the scan and should be treated as approximate — always confirm exact pin location against the original diagram or a factory pinout tool before probing/repairing.
+
+---
+
+## 1. System Overview
+
+The Automatic A/C system is built around the **HVAC Module** (center of dash), which:
+
+- Is powered by the **Blower Motor Relay** and **A/C Clutch Relay** (both inside the Power Distribution Center).
+- Talks to the rest of the vehicle over **CAN IHS** (interior high-speed bus).
+- Reads six temperature sensors, a sun-load sensor, and door position feedback to automatically drive three blend/mode/recirculation doors and the blower motor.
+- Commands the A/C compressor clutch, which is ultimately grounded/switched through the **Powertrain Control Module (PCM)** and the **A/C Compressor Solenoid**, with pressure feedback from the **A/C Pressure Transducer** and a hard interlock via the **Series/Parallel Radiator Fan Relay**.
+
+```mermaid
+graph TD
+    PDC["Power Distribution Center<br/>Fuse 83 (40A) / Fuse 19 (7.5A)"] --> BMR["Blower Motor Relay"]
+    PDC --> ACR["A/C Clutch Relay"]
+    BMR --> FBMPM["Front Blower Motor<br/>Power Module"]
+    FBMPM --> BLWR["Blower Motor"]
+    ACR --> HVAC["HVAC Module<br/>(Center of Dash)"]
+
+    HVAC <-- CAN IHS --> BCM["Body Control Module"]
+    HVAC -- Blend/Mode/Recirc control --> LBD["Left Blend Door Actuator"]
+    HVAC --> RBD["Right Blend Door Actuator"]
+    HVAC --> MDA["Front Mode Door Actuator"]
+    HVAC --> RDA["Recirculation Door Actuator"]
+
+    ICT["In-Car Temp Sensor"] --> HVAC
+    SUN["Sun Sensor"] --> HVAC
+    AAT["Ambient Air Temp Sensor"] --> BCM --> HVAC
+    EVAP["Evaporator Temp Sensor"] --> HVAC
+    DUCTS["4x Duct Temp Sensors<br/>(LH/RH Panel, LH/RH Floor)"] --> BCM --> HVAC
+
+    HVAC -- A/C Clutch Ctrl O/P --> PCM["Powertrain Control Module"]
+    PCM -- A/C Compressor Ctrl --> ACSOL["A/C Compressor Solenoid"]
+    ACSOL --> ACCLUTCH["A/C Compressor Clutch"]
+    APT["A/C Pressure Transducer"] --> PCM
+    ECT["Engine Coolant Temp Sensor"] --> PCM
+    PCM <-- CAN C --> RFM["Radiator Fan Module"]
+    HUMID["Humidity Sensor<br/>(in mirror)"] -- LIN Bus --> BCM
+```
+
+---
+
+## 2. Power Supply & Fuses
+
+| Fuse | Rating | Location | Feeds |
+|---|---|---|---|
+| 83 | 40A | Power Distribution Center Assembly | Blower Motor Relay (pin 30) |
+| 19 | 7.5A | Power Distribution Center Assembly | A/C Clutch Relay (pin 30) |
+| 1 | 70A | Power Distribution Center Assembly (hot at all times) | Fused B(+) to Body Control Module circuit board |
+| 36 | 20A | Power Distribution Center Assembly | Body Control Module circuit board — ambient/duct temp sensor supply, hood ajar switch |
+| 37 | 10A | Power Distribution Center Assembly | Body Control Module circuit board |
+| 51 | 7.5A | Power Distribution Center Assembly | Fused ignition (run/start) to Body Control Module circuit board |
+| 9 | 7.5A | Power Distribution Center Assembly | Series/Parallel Radiator Fan Relay, A/C Compressor Solenoid circuit |
+| A | 50A | Battery Distribution Unit | Radiator Fan Module (FSD B+) |
+
+---
+
+## 3. Relays
+
+| Relay | Location | Control (coil) | Switched output |
+|---|---|---|---|
+| Blower Motor Relay | Power Distribution Center | Driven by HVAC Module (BLWR CTRL) | Fuse 83 (40A) → Front Blower Motor Power Module |
+| A/C Clutch Relay | Power Distribution Center | Driven by HVAC Module (A/C Clutch Ctrl O/P) | Fuse 19 (7.5A) → A/C clutch control feed |
+| Series/Parallel Radiator Fan Relay | Power Distribution Center (left side of engine compt) | Driven by Radiator Fan Module / PCM | Fuse 9 (7.5A) circuit, gates A/C compressor clutch & radiator fan staging |
+
+---
+
+## 4. HVAC Module — Signal Reference
+
+The HVAC Module is a 30-way connector (plus a small 6-way ground/splice connector, `C1`, via splice `GZ913A`/`GZ913B`) located at the center of the dash. Signals present at this connector:
+
+| Signal | Wire Color | Destination |
+|---|---|---|
+| Fused Ignition | PNK/GRN | Fuse 51 (via PDC) |
+| Fused B(+) | YEL/RED | Fuse 19/Battery feed |
+| CAN IHS (+) | YEL/GRY | Computer Data Lines System |
+| CAN IHS (−) | WHT/PNK | Computer Data Lines System |
+| Ground | BLK/VIO | Splice `Z913` / `GZ913A` / `GZ913B` (left side of engine compt) |
+| LH Blend Door Common Drive | WHT/RED | Left Blend Door Actuator |
+| LH Blend Door Drive | ORG/BLK | Left Blend Door Actuator |
+| LH Blend Door Signal | BLU/WHT | Left Blend Door Actuator (position feedback) |
+| A/C Clutch Control Output | RED/GRN | A/C Clutch Relay coil |
+| Blower Control (BLWR CTRL) | BLU/GRN | Blower Motor Relay coil |
+| Blower Motor Return | BLU/BLK | Front Blower Motor Power Module |
+| Mode Door Drive | RED/PNK | Front Mode Door Actuator |
+| Mode Door Common Drive | GRY/BLK | Front Mode Door Actuator |
+| Mode Door Signal | GRY/GRN | Front Mode Door Actuator (position feedback) |
+| RH Panel Temp Sensor Signal | BRN | Right Panel Duct Temperature Sensor |
+| LH Panel Temp Sensor Signal | GRN | Left Panel Duct Temperature Sensor |
+| Evaporator Temp Sensor Signal | BLU/YEL | Evaporator Temperature Sensor |
+| Reference Voltage Supply | WHT/GRN | Shared sensor excitation supply |
+| Recirculation Door Common Drive | GRY/RED | Recirculation Door Actuator |
+| Recirculation Door Drive | BRN/GRN | Recirculation Door Actuator |
+| Recirculation Door Signal | BRN/BLK | Recirculation Door Actuator (position feedback) |
+| RH Floor Temp Sensor Signal | WHT | Right Floor Duct Temperature Sensor |
+| LH Floor Temp Sensor Signal | ORG | Left Floor Duct Temperature Sensor |
+| Sensor Ground (×2) | BLK/RED, BLK/VIO | Shared sensor return |
+| RH Blend Door Signal | WHT/GRY | Right Blend Door Actuator |
+| RH Blend Door Drive | YEL/GRY | Right Blend Door Actuator |
+| RH Blend Door Common Drive | GRN/BLK | Right Blend Door Actuator |
+| Auto Headlamp Signal | WHT/VIO | Body Control Module (headlamp switch logic) |
+| Sun Sensor Signal 1 | VIO/DK BLU | Sun Sensor |
+| Sun Sensor Signal 2 | VIO/BLU | Sun Sensor |
+| In-Car Temperature Signal | BLU/ORG | In-Car Temperature Sensor |
+| In-Car Temperature Return | BLU/BRN | In-Car Temperature Sensor |
+
+---
+
+## 5. Temperature & Position Sensors
+
+| Sensor | Location | Signal(s) | Routed to |
+|---|---|---|---|
+| In-Car Temperature Sensor | Under left side of dash | IN CAR TEMP SIG, IN CAR TEMP RTN, GND | HVAC Module (direct) |
+| Sun Sensor | Front center of dash | SUN SENS SIG 1, SUN SENS SIG 2, SENS GND | HVAC Module (direct) |
+| Ambient Air Temperature Sensor | Behind right side of front fascia | AAT SIG, SENS GND | Body Control Module → HVAC Module |
+| Evaporator Temperature Sensor | Left side of HVAC unit | EVAP TEMP SENS SIG, SENS GND | HVAC Module (direct), also shown routed through BCM circuit board |
+| Left Panel Duct Temperature Sensor | Center of dash | SENS SIG, SENS GND | HVAC Module (via BCM circuit board) |
+| Right Panel Duct Temperature Sensor | Right side of dash | SENS SIG, SENS GND | HVAC Module (via BCM circuit board) |
+| Left Floor Duct Temperature Sensor | Center of dash | SENS SIG, SENS GND | HVAC Module (via BCM circuit board) |
+| Right Floor Duct Temperature Sensor | Right side of dash | SENS SIG, SENS GND | HVAC Module (via BCM circuit board) |
+| Engine Coolant Temperature (ECT) Sensor | Right rear of engine | ECT SIG, SENS GND | Powertrain Control Module |
+| A/C Pressure Transducer | Right front of engine compt | A/C PRESSURE SIG, 5V SPLY, SENSOR GND | Powertrain Control Module |
+| Humidity Sensor | Under rear-view mirror trim | LIN BUS 1, FUSED IGN, GND | Body Control Module (LIN bus) |
+| Hood Ajar Switch | Behind center of upper grille | SENS SIG, SENS GND | Body Control Module |
+
+---
+
+## 6. Door Actuators & Blower
+
+| Actuator | Location | Drive signals | Feedback signal |
+|---|---|---|---|
+| Left Blend Door Actuator | Left side of HVAC | Common Drive, Drive | Signal (position) |
+| Right Blend Door Actuator | Right side of HVAC | Common Drive, Drive | Signal (position) |
+| Front Mode Door Actuator | Left side of HVAC | Common Drive, Drive | Signal (position) |
+| Recirculation Door Actuator | Right side of HVAC | Common Drive, Drive | Signal (position) |
+| Blower Motor | Under right end of dash | BLWR MTR SPLY (×3), GND | — |
+| Front Blower Motor Power Module | Under right end of dash | BLWR CTRL (from HVAC Module), BLWR MTR RTN | Switches blower motor supply/speed |
+
+All four door actuators share a **Reference Voltage Supply** and **Sensor Ground** pair sourced from the HVAC Module for their position potentiometers.
+
+---
+
+## 7. A/C Compressor & Cooling Fan Interface
+
+- **A/C Compressor Clutch** (mounted on the A/C compressor): grounded/energized through `DK BLU/YEL` from splice `G904` (left side of engine).
+- **A/C Compressor Solenoid** (left side of engine): 3-pin — `FUSED IGN` (PNK/GRN), `LIN BUS` (WHT/BLU), `GND` (BLK) — controlled via LIN bus, gated through Fuse 9 (7.5A) and the Series/Parallel Radiator Fan Relay.
+- **Radiator Fan Module** (behind left side of upper grille): supplies `RAD FAN CTRL`, `RAD FAN ENABLE SIG`, `LOW RAD FAN RLY CTRL`, `GND` to the PCM, and receives Fused B(+) from Battery Distribution Unit Fuse A (50A).
+- **PCM inputs relevant to A/C**: `A/C CLUTCH CTRL`, `A/C PRESSURE SIG`, `5V SPLY`, `SENSOR GND`, `ECT SIG`, plus `CAN C (+)/(−)` to the Computer Data Lines System.
+
+---
+
+## 8. Key Connector / Splice / Ground Reference
+
+| ID | Description |
+|---|---|
+| `GZ913A` / `GZ913B` | Splice/ground points, left side of engine compartment — HVAC Module power & ground |
+| `Z913` | Ground point for HVAC Module |
+| `G904` | Ground, left side of engine — A/C compressor clutch |
+| `G939` / `G39` / `G139` | Sun sensor signal grounds/splices |
+| `C1`–`C268` (various) | HVAC Module internal connector pin groups |
+| `GZ905A` | Splice, left front of engine compartment — radiator fan module |
+| `S809`, `S778`, `S179` | Wiring splices in dash/engine harness feeding radiator fan / A/C pressure circuits |
+
+---
+
+## 9. Cross-Referenced Systems
+
+- **Computer Data Lines System** — CAN IHS (HVAC Module ⇄ BCM) and CAN C (PCM ⇄ Radiator Fan Module / cluster).
+- **Cooling Fans System** — Series/Parallel Radiator Fan Relay, Radiator Fan Module, Radiator Fan Resistor 1.
+- **Engine Controls System** — ECT sensor, A/C pressure transducer, A/C compressor solenoid, all terminating at the PCM.
+- **Body Control Module** — supplies switched power/ground to ambient and duct temperature sensors, hood ajar switch, and humidity sensor (LIN bus); relays Auto Headlamp signal to/from HVAC Module.
+
+---
+
+## 10. Quick Diagnostic Notes
+
+- No blower operation: check Fuse 83 (40A) and Blower Motor Relay before condemning the Front Blower Motor Power Module.
+- No compressor clutch engagement: check Fuse 19 (7.5A) and A/C Clutch Relay at the HVAC Module side, then verify PCM `A/C CLUTCH CTRL` and A/C Compressor Solenoid wiring (LIN bus circuit) and A/C Pressure Transducer signal (PCM won't engage clutch outside pressure range).
+- Erratic auto-climate temperature control: verify In-Car Temperature Sensor and Sun Sensor circuits first (unique to Automatic A/C — absent on Manual A/C variant), then the four duct/ambient sensors routed through the BCM.
+- Door not responding (blend/mode/recirc): confirm shared Reference Voltage Supply and Sensor Ground at the HVAC Module before replacing an actuator.
