@@ -171,6 +171,8 @@ elif page == "Diagnose":
 
         triage = SessionManager.get_last_triage()
         diagnosis = SessionManager.get_last_diagnosis()
+
+        if triage and diagnosis:
             # CRAG & Cross-Encoder Observability Panel
             if diagnosis.crag_report is not None:
                 crag = diagnosis.crag_report
@@ -199,6 +201,7 @@ elif page == "Diagnose":
                         for item in crag.score_breakdown:
                             tag = "🖼️ [Diagram]" if item.get("is_diagram") else "📄 [Text]"
                             st.write(f"- {tag} **{item['section']}** — Score: `{item['score']:.3f}` ({item['status']})")
+
 
             with st.expander("🧠 Thinking (triage + reasoning trace)", expanded=True):
                 st.markdown("**Systems identified:** " + (", ".join(triage.systems) or "—"))
